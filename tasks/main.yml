@@ -1,0 +1,137 @@
+# tasks file for tarsnap
+# The tasks for installing Tarsnap originally pulled from:
+# https://github.com/sovereign/sovereign/blob/master/roles/tarsnap/tasks/tarsnap.yml
+
+- name: Create tarsnap folder (stores tarsnapper_jobs, log, and tarsnap keys)
+  file:
+    path: "{{ tarsnap_folder }}"
+    owner: root
+    group: root
+    mode: 0700
+    state: directory
+
+- name: Install dependencies for Tarsnap
+  yum: name={{ item }} state=present
+  with_items:
+    - gcc
+    - make
+    - glibc-devel
+    - openssl-devel
+    - zlib-devel
+    - e2fsprogs-devel
+    - python-pip # required for Tarsnapper Python wrapper, requires the EPEL repo
+
+- name: Check if tarsnap {{ tarsnap_version }} is installed
+  shell: /usr/local/bin/tarsnap --version | grep {{ tarsnap_version }} --color=never
+  register: tarsnap_installed
+  changed_when: "tarsnap_installed.stderr != ''"
+  ignore_errors: yes
+
+- name: Download the current tarsnap code signing key
+  when: tarsnap_installed|failed
+  get_url:
+    url: https://www.tarsnap.com/tarsnap-signing-key.asc
+    dest: "{{ tarsnap_folder }}/tarsnap-signing-key.asc"
+
+- name: Add the tarsnap code signing key to your list of keys
+  when: tarsnap_installed|failed
+  command: gpg --import tarsnap-signing-key.asc chdir={{ tarsnap_folder }}
+
+- name: Download tarsnap SHA file
+  when: tarsnap_installed|failed
+  get_url:
+    url: "https://www.tarsnap.com/download/tarsnap-sigs-{{ tarsnap_version }}.asc"
+    dest: "{{ tarsnap_folder }}/tarsnap-sigs-{{ tarsnap_version }}.asc"
+
+- name: get the SHA256sum for this tarsnap release
+  when: tarsnap_installed|failed
+  shell: >
+    gpgResult=`gpg --decrypt tarsnap-sigs-{{ tarsnap_version }}.asc 2>/dev/null`;
+    echo ${gpgResult#*=};
+  args:
+    executable: /bin/bash
+    chdir: "{{ tarsnap_folder }}"
+  register: tarsnap_sha
+
+- name: Download Tarsnap source
+  when: tarsnap_installed|failed
+  get_url:
+    url: "https://www.tarsnap.com/download/tarsnap-autoconf-{{ tarsnap_version }}.tgz"
+    dest: "{{ tarsnap_folder }}/tarsnap-autoconf-{{ tarsnap_version }}.tgz"
+    sha256sum: "{{ tarsnap_sha.stdout_lines[0] }}"
+
+- name: Decompress Tarsnap source
+  when: tarsnap_installed|failed
+  unarchive:
+      src: "{{ tarsnap_folder }}/tarsnap-autoconf-{{ tarsnap_version }}.tgz"
+      dest: "{{ tarsnap_folder }}/"
+      copy: no
+      creates: "{{ tarsnap_folder }}/tarsnap-autoconf-{{ tarsnap_version }}/COPYING"
+      owner: root
+      group: root
+
+- name: Configure Tarsnap for local build
+  when: tarsnap_installed|failed
+  command: ./configure chdir={{ tarsnap_folder }}/tarsnap-autoconf-{{ tarsnap_version }} creates=tarsnap-autoconf-{{ tarsnap_version }}/Makefile
+
+- name: Build and install Tarsnap
+  when: tarsnap_installed|failed
+  command: make all install clean chdir={{ tarsnap_folder }}/tarsnap-autoconf-{{ tarsnap_version }} creates=/usr/local/bin/tarsnap
+
+- name: Create Tarsnap cache directory
+  file: state=directory path={{ tarsnap_cache }}
+
+- name: Install Tarsnap configuration file
+  # Options may be specified in /usr/local/etc/tarsnap.conf and/or
+  # ~/.tarsnaprc; if the two files conflict, the user's local
+  # configuration takes precedence.
+  template:
+      src: tarsnaprc.j2
+      dest: /root/.tarsnaprc
+      owner: root
+      group: root
+      mode: 0644
+
+- name: Configure tarsnap logrotate
+  template:
+      src: etc_logrotate_tarsnap.j2
+      dest: /etc/logrotate.d/tarsnap
+      owner: root
+      group: root
+      mode: 0644
+
+- name: Install Tarsnapper python wrapper to manage archive expiration
+  pip: name=tarsnapper state=present
+
+- name: Install list of Tarsnapper backup jobs
+  template:
+    src: "{{ tarsnapper_jobs_sourcefile }}"
+    dest: "{{ tarsnapper_jobs_destfile }}"
+    mode: 0644
+
+- name: Install tarsnapper_wrapper shell script (it calls Tarsnapper and logs output)
+  template:
+      src: tarsnapper_wrapper.sh.j2
+      dest: "{{ tarsnap_folder }}/tarsnapper_wrapper.sh"
+      mode: 0755
+
+- name: Create cronjob for tarsnapper_wrapper shell script (which calls Tarsnapper)
+  cron:
+    name: "Tarsnap backup"
+    job: "{{ tarsnap_folder }}/tarsnapper_wrapper.sh"
+    minute: "{{ tarsnap_cron_minute }}"
+    hour: "{{ tarsnap_cron_hour }}"
+    day: "{{ tarsnap_cron_day }}"
+    month: "{{ tarsnap_cron_month }}"
+
+- name: Reminder about Tarsnap key and cron mailto
+  pause:
+    prompt: |
+        Ansible paused.
+        Need to manually do two things:
+            1) Copy or generate a Tarsnap encryption key and place in
+                    {{ tarsnap_folder }}/tarsnap.key
+            2) Use `crontab -e` and verify at the top it says "MAILTO={{ email_address }}"
+                If the MAILTO variable gets changed, need to reboot the server for it to take effect.
+            3) Verify that port 9279 is open for tarsnap to communicate with server
+        Then come back here and hit enter to continue.

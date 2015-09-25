@@ -1,0 +1,26 @@
+---
+# default vars for tarsnap
+
+tarsnap_version: 1.0.36.1
+tarsnap_folder: "/root/tarsnap_backups" # Do not include trailing slash
+tarsnap_keyfile: "{{ tarsnap_folder }}/tarsnap.key"
+tarsnap_cache: "/usr/local/tarsnap-cache"
+# The log file will be created if it doesn't exist,
+# as long as the parent directory {{ tarsnap_folder }} exists.
+# However, if the parent directory {{ tarsnap_folder }} doesn't exist,
+# tarsnapper_wrapper.sh won't be able to create the file.
+tarsnap_log: "{{ tarsnap_folder }}/tarsnap.log"
+tarsnap_checkpoint_bytes: 1G
+
+tarsnapper_jobs_sourcefile: tarsnapper_jobs.yml.j2
+tarsnapper_jobs_destfile: "{{ tarsnap_folder }}/tarsnapper_jobs.yml"
+tarsnapper_global_deltas: "1d 7d 30d 360d 18000d"
+tarsnapper_global_target: "$name-$date"
+
+tarsnap_cron_minute: "0"
+tarsnap_cron_hour: "9" # 9am UTC is 2am PST
+tarsnap_cron_day: "*"
+tarsnap_cron_month: "*"
+
+#tarsnap_global_exclusions:
+#  - "*.DS_Store"

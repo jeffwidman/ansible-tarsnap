@@ -1,0 +1,41 @@
+# List of backup jobs and configuration options for Tarsnapper
+# https://github.com/miracle2k/tarsnapper
+#
+# Notes:
+#
+#  - Dump and archive each domain's DB and files separately;
+#      simplifies things later if I want to restore or delete backups for a single site.
+#
+#  - Don't compress stuff as that inhibits Tarsnap's built-in block-level deduplication
+#
+#  - `nice` and `ionice` don't work on mysqldump because it's just passing commands to mysqld
+#
+#  - Tarsnapper currently doesn't support passing --print-stats to Tarsnap:
+#      https://github.com/miracle2k/tarsnapper/issues/16
+
+
+# Global values, valid for all jobs unless overridden:
+deltas: {{ tarsnapper_global_deltas }}
+target: {{ tarsnapper_global_target }}
+
+
+jobs:
+  # List your jobs here.
+  # Examples:
+  #
+  # images:
+  #   source: /var/lib/mysql
+  #   exclude: /var/lib/mysql/temp
+  #   exec_before: service stop mysql
+  #   exec_after: service start mysql
+  #   # Aliases can be used when renaming a job to match old archives.
+  #   alias: img
+  #
+  # some-other-job:
+  #   sources:
+  #     - /var/dir/1
+  #     - /etc/google
+  #   excludes:
+  #     - /etc/google/cache
+  #   target: /custom-target-$date.zip
+  #   deltas: 1h 6h 1d 7d 24d 180d

@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# ###############################################################################
+# FUNCTIONS
+# ###############################################################################
+function log {
+    echo `date +%F\ %T`: "$@"
+}
+
+function failed {
+    log "backup generation FAILED: Line: $1, Code: $2"
+    exit $2
+}
+
+# ###############################################################################
+# ENVIRONMENT
+# ###############################################################################
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+trap 'failed ${LINENO} ${$?}' ERR
+
+exec > >(tee -a {{ tarsnap_log }})
+exec 2>&1
+
+# ###############################################################################
+# MAIN
+# ###############################################################################
+# Note: Tarsnapper currently doesn't support passing `--print-stats` to Tarsnap:
+# https://github.com/miracle2k/tarsnapper/issues/16
+log "backup generation START"
+nice -n19 ionice -c3 tarsnapper -c {{ tarsnapper_jobs_destfile }} make
+log "backup generation DONE"
