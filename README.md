@@ -22,7 +22,7 @@ jobs, and then delete the '.example' extension.
 
 One gotcha: Ansible first looks for files in the role's template directory and
 only if it doesn't find the file will it look in the playbook directory. So if
-`tarsnapper_jobs.yml.j2` exists in both /roles/tarsnap/templates and in the root
+`tarsnapper_jobs.yml.j2` exists in both `/roles/tarsnap/templates` and in the root
 of your playbook directory, the role template will win.
 
 There's a crontask that by default runs once a day to call Tarsnapper. If you want
@@ -40,13 +40,16 @@ Adds some error handling and logs the output of the tarsnapper jobs to the logfi
 
 Why Tarsnapper?
 Having lots of snapshots doesn't take up much additional space or cost because
-tarsnap does an amazing job of diff'ing the deltas. Unfortunately, it takes
-quite a while for Tarsnap to parse all the diffs, so it's better to keep the number
-of snapshots relatively low. Otherwise you'll be waiting a long time for backups
-to be reconstructed. Normally when you want your backups, it's an emergency
-situation where you really do NOT want to be waiting for diffs to be parsed.
-That's where Tarsnapper comes in--it auto-deletes old snapshots using a configurable
-GFS scheme.
+tarsnap does an amazing job of diff'ing the backups and only storing the deltas.
+Unfortunately, as you accumulate more and more snapshots, restoring a backup
+becomes painfully slow because Tarsnap has to parse all those diffs to reconstruct
+the backup.
+For most production scenarios, a faster recovery time is more important than
+maintaining daily backups for years and years. That's where Tarsnapper comes in.
+It speeds up your recovery time by deleting intermediate backups, thereby
+forcing Tarsnap to merge snapshot deltas together. You can choose which snapshots
+get deleted using a configurable grandfather-father-son (GFS) scheme.
+
 
 Requirements
 ------------
