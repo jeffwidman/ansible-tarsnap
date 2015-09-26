@@ -29,7 +29,7 @@ There's a crontask that by default runs once a day to call Tarsnapper. If you wa
 backups more/less frequently, adjust the crontask accordingly.
 If you want to be emailed the output of the job, just set `MAILTO` in your crontab.
 
-Other Notes:
+Other Notes
 --------------
 
 This role is a little convoluted because there's a cron task that calls a bash
