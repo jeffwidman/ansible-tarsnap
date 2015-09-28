@@ -12,7 +12,7 @@ tarsnap_cache: "/usr/local/tarsnap-cache"
 tarsnap_log: "{{ tarsnap_folder }}/tarsnap.log"
 tarsnap_checkpoint_bytes: 1G
 
-tarsnapper_jobs_sourcefile: tarsnapper_jobs.yml.j2
+tarsnapper_jobs_sourcefile: files/tarsnapper_jobs.yml.j2
 tarsnapper_jobs_destfile: "{{ tarsnap_folder }}/tarsnapper_jobs.yml"
 tarsnapper_global_deltas: "1d 7d 30d 360d 18000d"
 tarsnapper_global_target: "$name-$date"
